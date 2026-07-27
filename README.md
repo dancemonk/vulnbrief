@@ -81,7 +81,8 @@ Issues.
 - The CLI exists but has no commands yet (no `show`, no CVE retrieval).
 - No external-source adapter is implemented.
 - No cache schema or normalized Pydantic model exists.
-- No CI workflow exists; local checks are configured through the `Makefile`.
+- CI runs `make check` on every pull request and push to `main` via GitHub
+  Actions (`.github/workflows/ci.yml`).
 - Confidential security reporting is not configured yet.
 
 See [Contributing](CONTRIBUTING.md), [Security](SECURITY.md),
