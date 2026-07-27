@@ -11,9 +11,3 @@
 - Report conflicts between the Issue, `SPEC.md`, `AGENTS.md`, and ADRs before
   editing.
 - Do not commit, push, or merge without explicit maintainer approval.
-- Uses uv for dependency management.
-- Commits uv.lock.
-- Configures mypy.
-- Adds Makefile targets for lint, format-check, typecheck, test, and check.
-- `make check` passes.
-- Declares and documents the supported Python version.

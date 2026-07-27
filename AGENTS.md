@@ -4,9 +4,10 @@
 
 VulnBrief is planned as a Python terminal application that retrieves,
 normalizes, correlates, caches, and displays vulnerability intelligence from
-NVD, CISA KEV, and FIRST EPSS. The repository is currently a documentation
-scaffold: no package, CLI, database, or tests exist yet. Treat capabilities in
-GitHub Issues and `docs/` as planned until implementation and tests exist.
+NVD, CISA KEV, and FIRST EPSS. The repository has a Python 3.12 package, an
+empty Typer CLI, and CLI smoke tests. Retrieval, normalization, storage, and
+rendering remain planned. Treat capabilities in GitHub Issues and `docs/` as
+planned until implementation and tests exist.
 
 ## Source of Truth
 
@@ -35,9 +36,13 @@ updated with maintainer approval.
 - `docs/source-contracts.md`: common and source-specific adapter behavior.
 - `docs/decisions/`: accepted architecture decision records.
 - `.github/`: Issue forms and pull-request template.
+- `pyproject.toml` and `uv.lock`: package, dependency, and tool configuration.
+- `Makefile`: repository verification targets.
+- `src/vulnbrief/`: installable package; currently the CLI shell only.
+- `tests/`: pytest suite mirroring implemented behavior.
 
-Future production code belongs under `src/`; tests mirror it under `tests/`.
-Do not add root-level implementation modules.
+Production code belongs under `src/`; tests mirror it under `tests/`. Do not add
+root-level implementation modules.
 
 ## Architecture Boundaries
 
@@ -55,17 +60,20 @@ Follow `SPEC.md`, [architecture](docs/architecture.md), and accepted ADRs.
 
 ## Development Commands
 
-No Python toolchain is configured yet. Current repository checks are:
+Use the locked uv environment and repository targets:
 
 ```bash
-git diff --check
-git status --short
+uv sync --locked             # install dependencies exactly from uv.lock
+uv run vulnbrief --help      # run the implemented CLI help entry point
+make lint                    # run Ruff lint checks
+make format-check            # check Ruff formatting without rewriting files
+make typecheck               # run strict mypy checks
+make test                    # run pytest
+make check                   # run all required checks above
 ```
 
-Do not invent or claim working commands. When a `Makefile` with a valid
-`check` target exists, `make check` becomes the required complete verification
-command. Until then, run every documented available check and report missing
-lint, type-check, and test commands explicitly.
+`make check` is the authoritative complete verification command. Run it before
+declaring a task finished and report its exact result.
 
 ## Coding Rules
 
@@ -74,8 +82,8 @@ lint, type-check, and test commands explicitly.
 - Do not perform unrelated refactoring or expand scope.
 - Do not add dependencies without explaining need and tradeoffs in the Issue or
   pull request. Commit the uv lockfile when dependency management exists.
-- Use UTF-8, Unix line endings, and spaces. Use Python type annotations once
-  Python code exists; Ruff and mypy will define enforceable style.
+- Use UTF-8, Unix line endings, spaces, and Python type annotations. Ruff and
+  mypy define enforceable style and type rules.
 - Prefer small, purpose-focused modules and explicit interfaces.
 - Update user and architecture documentation when behavior or boundaries
   change.
@@ -129,8 +137,8 @@ lint, type-check, and test commands explicitly.
 
 A task is done only when scope matches its Issue, implementation and docs agree,
 tests cover behavior and failures, no live API calls occur in tests, security
-rules hold, and the repository's complete verification command passes. If that
-command does not exist, state the gap; never report success for checks not run.
+rules hold, and the authoritative `make check` command passes. Never report
+success for checks not run.
 
 ## Required Completion Report
 

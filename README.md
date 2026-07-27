@@ -6,8 +6,8 @@ correlating, caching, and displaying vulnerability intelligence for one CVE.
 ## Project Status
 
 VulnBrief now has an installable package and an empty Typer CLI (`vulnbrief
---help`), with pytest and Ruff configured. The CLI has no commands yet — no
-database, source adapters, or CVE retrieval/rendering exist. GitHub Issues
+--help`), with pytest, Ruff, and mypy configured. The CLI has no commands yet —
+no database, source adapters, or CVE retrieval/rendering exist. GitHub Issues
 define the implementation sequence; documentation must not be read as evidence
 that a planned feature already exists.
 
@@ -30,8 +30,9 @@ The command is planned to:
 - cache successful briefings in SQLite; and
 - render an explainable terminal briefing with Rich.
 
-The intended implementation stack is Python, Typer, Rich, HTTPX, Pydantic,
-SQLite, pytest, Ruff, mypy, and uv. None is configured in the repository yet.
+The configured foundation is Python 3.12, Typer, pytest, Ruff, mypy, uv, and
+Hatchling. Rich, HTTPX, Pydantic, SQLite integration, and all source adapters
+remain planned and are not implemented.
 
 ## Data Sources
 
@@ -44,7 +45,7 @@ SQLite, pytest, Ruff, mypy, and uv. None is configured in the repository yet.
 ## Development
 
 ```bash
-uv sync                   # install dependencies into .venv
+uv sync --locked          # install dependencies into .venv from uv.lock
 uv run vulnbrief --help   # run the CLI
 make check                # lint, format-check, typecheck, test
 ```
@@ -80,7 +81,7 @@ Issues.
 - The CLI exists but has no commands yet (no `show`, no CVE retrieval).
 - No external-source adapter is implemented.
 - No cache schema or normalized Pydantic model exists.
-- No automated checks or CI workflow exists.
+- No CI workflow exists; local checks are configured through the `Makefile`.
 - Confidential security reporting is not configured yet.
 
 See [Contributing](CONTRIBUTING.md), [Security](SECURITY.md),
