@@ -1,0 +1,22 @@
+{
+  "resultsPerPage": 1,
+  "startIndex": 0,
+  "totalResults": 1,
+  "format": "NVD_CVE",
+  "version": "2.0",
+  "timestamp": "2026-01-01T00:00:00.000",
+  "vulnerabilities": [
+    {
+      "cve": {
+        "id": "CVE-2024-5678",
+        "sourceIdentifier": "cve@example.org",
+        "published": "2024-03-01T00:00:00.000",
+        "lastModified": "2024-03-01T00:00:00.000",
+        "vulnStatus": "Received",
+        "descriptions": [],
+        "metrics": {},
+        "references": []
+      }
+    }
+  ]
+}
