@@ -1,0 +1,94 @@
+name: Bug report
+description: Report reproducible incorrect VulnBrief behavior
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Remove API keys, tokens, private vulnerability data, database contents, and other sensitive information before submitting logs.
+  - type: textarea
+    id: bug-description
+    attributes:
+      label: Bug description
+      description: Give a concise description of the incorrect behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction-steps
+    attributes:
+      label: Reproduction steps
+      description: Provide the smallest reliable sequence that reproduces the bug.
+      placeholder: |
+        1. Run ...
+        2. Provide ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected behavior
+      description: What should have happened?
+    validations:
+      required: true
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual behavior
+      description: What happened instead?
+    validations:
+      required: true
+  - type: input
+    id: cli-command
+    attributes:
+      label: CLI command
+      description: Provide the exact command, with secrets removed. Write N/A if not applicable.
+      placeholder: vulnbrief show CVE-YYYY-NNNN
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include OS, Python version, VulnBrief revision, and installation method.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sanitized logs
+      description: Remove API keys, tokens, private data, local paths, and sensitive response content.
+      render: shell
+      placeholder: Paste sanitized output or write No logs available.
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: Choose impact, not urgency of the desired fix.
+      options:
+        - Low - minor inconvenience or cosmetic issue
+        - Medium - degraded behavior with a workaround
+        - High - core workflow blocked or incorrect security data
+        - Critical - security exposure, data loss, or widespread failure
+    validations:
+      required: true
+  - type: dropdown
+    id: regression-status
+    attributes:
+      label: Regression status
+      options:
+        - Yes - behavior worked previously
+        - No - behavior has never worked
+        - Unknown
+    validations:
+      required: true
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Add sanitized fixtures, links, screenshots, or related Issues.
+      placeholder: Add context or write None.
+    validations:
+      required: true
