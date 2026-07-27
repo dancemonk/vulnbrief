@@ -26,10 +26,12 @@ the affected shared document.
 
 ## Development Setup
 
-VulnBrief is currently a documentation scaffold. No `pyproject.toml`, uv
-lockfile, package, or executable verification suite exists. Installation and
-Python development commands will be documented when the bootstrap Issue adds
-them. Do not invent setup commands in the meantime.
+```bash
+uv sync                   # install dependencies into .venv
+make check                # lint, format-check, typecheck, test
+```
+
+See [README.md](README.md#development) for the full command list.
 
 ## Branches and Commits
 
@@ -46,11 +48,8 @@ approval.
 
 ## Required Checks
 
-Run the repository's complete verification command before requesting review.
-Once a valid `make check` target exists, that command is authoritative and must
-cover formatting checks, linting, mypy, and pytest. Until then, run every
-documented available check and report unavailable checks rather than claiming
-they passed.
+Run `make check` before requesting review. It is the authoritative complete
+verification command and covers formatting checks, linting, mypy, and pytest.
 
 ## Pull Requests
 
