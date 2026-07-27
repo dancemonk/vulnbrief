@@ -11,11 +11,12 @@ import os
 from pathlib import Path
 
 import typer
+from rich.console import Console
 
 from vulnbrief.adapters import EpssAdapter, KevAdapter, NvdAdapter
 from vulnbrief.adapters.exceptions import SourceError
 from vulnbrief.correlation import CorrelationService
-from vulnbrief.rendering import render_briefing
+from vulnbrief.rendering import build_renderable
 from vulnbrief.storage import SqliteBriefingRepository
 from vulnbrief.workflow import run_show
 
@@ -59,7 +60,7 @@ def show(
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=1) from None
 
-    typer.echo(render_briefing(briefing))
+    Console().print(build_renderable(briefing))
 
 
 if __name__ == "__main__":
