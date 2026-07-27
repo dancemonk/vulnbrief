@@ -8,14 +8,13 @@ when releases begin.
 
 ## Reporting a Vulnerability
 
-GitHub private vulnerability reporting is not enabled for this repository, and
-no private security email address is configured. Do not open a public Issue
-containing exploit details, secrets, or sensitive evidence.
+Private vulnerability reporting is not currently configured. Vulnerability
+details must not be submitted through public Issues. A confidential channel
+must be configured before private reports can be accepted.
 
-The maintainer must enable GitHub private vulnerability reporting before the
-project can offer a confidential reporting channel. Until then, reporting
-instructions are incomplete; share only nonsensitive notice through a public
-Issue and wait for the maintainer to establish a private channel.
+Enabling GitHub private vulnerability reporting is a maintainer follow-up. No
+security email address or alternative private contact channel is currently
+available.
 
 ## Secrets and Configuration
 

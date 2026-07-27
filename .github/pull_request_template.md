@@ -53,12 +53,13 @@ Point reviewers to risky assumptions, boundaries, or files needing close review.
 
 - [ ] Scope matches the linked Issue.
 - [ ] No unrelated refactoring is included.
-- [ ] Tests were added or updated for changed behavior.
+- [ ] Tests were added or updated when behavior changed.
 - [ ] Tests make no live external API calls.
 - [ ] No secrets, API keys, `.env` files, or local databases are committed.
-- [ ] Linting passes.
-- [ ] Type checking passes.
-- [ ] Tests pass.
+- [ ] All applicable configured checks pass.
+- [ ] Unavailable or inapplicable checks are documented with a reason.
+- [ ] `SPEC.md` was updated, or this change does not alter specified behavior.
+- [ ] Relevant ADRs were updated, or no architecture decision changed.
 - [ ] Documentation reflects user-visible and architectural changes.
 - [ ] Failure scenarios and security effects were reviewed.
 - [ ] No dependency was added without rationale and lockfile updates.

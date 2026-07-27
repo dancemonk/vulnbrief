@@ -18,6 +18,8 @@ The v0.1 goal is one command:
 vulnbrief show CVE-YYYY-NNNN
 ```
 
+See the [v0.1 specification](SPEC.md) for approved behavior and boundaries.
+
 The command is planned to:
 
 - retrieve CVE and CVSS data from NVD;
@@ -72,5 +74,5 @@ Issues.
 - Confidential security reporting is not configured yet.
 
 See [Contributing](CONTRIBUTING.md), [Security](SECURITY.md),
-[Architecture](docs/architecture.md), [Data Model](docs/data-model.md), and
-[Source Contracts](docs/source-contracts.md).
+[Specification](SPEC.md), [Architecture](docs/architecture.md),
+[Data Model](docs/data-model.md), and [Source Contracts](docs/source-contracts.md).

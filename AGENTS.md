@@ -10,21 +10,24 @@ GitHub Issues and `docs/` as planned until implementation and tests exist.
 
 ## Source of Truth
 
-Use this order:
+Authority follows responsibility:
 
-1. GitHub Issue acceptance criteria
-2. `AGENTS.md`
-3. Accepted architecture decision records
-4. Architecture and source contracts
-5. Existing tests
-6. Existing implementation
-7. Agent assumptions
+- A GitHub Issue controls current task scope and acceptance criteria.
+- `SPEC.md` controls approved product behavior and MVP boundaries.
+- `AGENTS.md` controls repository-wide engineering and workflow rules.
+- Accepted ADRs control architecture decisions.
+- Architecture and source-contract documents explain approved boundaries.
+- Tests and implementation provide evidence of current behavior.
 
-When sources conflict, report the conflict. Never silently choose one.
+An Issue must not silently override `SPEC.md`, `AGENTS.md`, or an accepted ADR.
+When sources conflict, stop and report the conflict before editing. A behavior
+change requires the governing Issue and affected specification or ADR to be
+updated with maintainer approval.
 
 ## Repository Structure
 
 - `README.md`: product status, planned MVP, and contributor entry points.
+- `SPEC.md`: approved v0.1 behavior and product boundaries.
 - `CONTRIBUTING.md`: Issue, branch, review, and pull-request workflow.
 - `SECURITY.md`: security policy and reporting status.
 - `docs/architecture.md`: layer responsibilities and dependency rules.
@@ -38,7 +41,7 @@ Do not add root-level implementation modules.
 
 ## Architecture Boundaries
 
-Follow [architecture](docs/architecture.md) and accepted ADRs.
+Follow `SPEC.md`, [architecture](docs/architecture.md), and accepted ADRs.
 
 - CLI code validates input and delegates; it must not perform HTTP requests or
   parse source-specific JSON.

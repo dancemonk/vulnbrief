@@ -19,6 +19,11 @@ Read the Issue and comments before planning. Keep acceptance criteria, failure
 scenarios, and out-of-scope items visible throughout the work. Stop and report
 conflicts instead of expanding scope.
 
+Check [SPEC.md](SPEC.md) for approved product behavior. An Issue scopes work but
+must not silently override the specification, repository rules, or an accepted
+ADR. Behavior or architecture changes require maintainer-approved updates to
+the affected shared document.
+
 ## Development Setup
 
 VulnBrief is currently a documentation scaffold. No `pyproject.toml`, uv

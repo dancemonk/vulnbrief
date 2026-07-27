@@ -21,7 +21,10 @@ without treating this diagram as implemented code.
   interface.
 - **Renderer:** converts normalized results and errors into terminal output.
 
-## Dependency Direction
+## Runtime Orchestration Flow
+
+This diagram shows expected runtime calls and data participation. It does not
+define Python import direction.
 
 ```mermaid
 flowchart TD
@@ -43,9 +46,17 @@ flowchart TD
     RENDERER --> DOMAIN
 ```
 
-Dependencies point inward toward normalized domain contracts. Infrastructure
-implements interfaces used by the application service; domain models do not
-import infrastructure.
+## Import and Dependency Boundaries
+
+- Domain models own no infrastructure dependencies.
+- Application logic depends on adapter and repository contracts.
+- Infrastructure implementations depend on and satisfy those contracts.
+- CLI and renderer consume application- and domain-facing interfaces.
+- A runtime call from application logic to an adapter does not mean domain code
+  imports adapter implementation details.
+
+Imports point toward normalized domain and application contracts, never from
+domain models into infrastructure.
 
 ## Forbidden Dependencies
 
