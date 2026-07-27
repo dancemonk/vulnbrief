@@ -23,7 +23,10 @@ import vulnbrief.cli as cli
 from vulnbrief.adapters import EpssAdapter, KevAdapter, NvdAdapter
 from vulnbrief.correlation import CorrelationService
 
-runner = CliRunner()
+# TERM=dumb for the same reason as tests/test_cli.py: it stops Rich from
+# styling output under CI terminal detection, which would otherwise break the
+# plain substring assertions below.
+runner = CliRunner(env={"TERM": "dumb"})
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 

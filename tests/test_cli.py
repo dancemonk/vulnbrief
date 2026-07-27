@@ -13,7 +13,11 @@ from vulnbrief.domain.enums import SourceName, SourceOutcome
 from vulnbrief.domain.models import KevInfo, SourceProvenance, VulnerabilityBriefing
 from vulnbrief.storage.repository import CacheCorruptionError
 
-runner = CliRunner()
+# TERM=dumb keeps CLI output deterministic across environments: Rich treats
+# GITHUB_ACTIONS as a terminal and styles Typer's help, which injects ANSI
+# codes mid-token and breaks plain substring assertions in CI while passing
+# locally.
+runner = CliRunner(env={"TERM": "dumb"})
 
 CVE_ID = "CVE-2024-1234"
 RETRIEVED_AT = datetime(2026, 1, 1, tzinfo=UTC)
