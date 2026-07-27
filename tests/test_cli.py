@@ -10,7 +10,7 @@ from typer.testing import CliRunner
 import vulnbrief.cli as cli
 from vulnbrief.adapters.exceptions import SourceNotFoundError, SourceUnavailableError
 from vulnbrief.domain.enums import SourceName, SourceOutcome
-from vulnbrief.domain.models import SourceProvenance, VulnerabilityBriefing
+from vulnbrief.domain.models import KevInfo, SourceProvenance, VulnerabilityBriefing
 from vulnbrief.storage.repository import CacheCorruptionError
 
 runner = CliRunner()
@@ -209,6 +209,31 @@ def test_show_partial_result_when_optional_source_fails(monkeypatch: pytest.Monk
 
     assert result.exit_code == 0
     assert "unavailable" in result.output
+
+
+def test_show_unsafe_source_text_does_not_crash_the_cli(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Before Issue #24 the "[/]" raised rich.errors.MarkupError inside the
+    # Console().print call, which sits outside show()'s except clauses, so the
+    # user got a traceback instead of a briefing.
+    unsafe = _briefing(
+        kev=KevInfo(
+            is_known_exploited=True,
+            required_action="Apply [sic] update; see [/] bulletin\x1b[31m",
+        ),
+        source_outcomes={
+            SourceName.NVD: SourceOutcome.FOUND,
+            SourceName.CISA_KEV: SourceOutcome.FOUND,
+        },
+    )
+    repository = _FakeRepository(cached=None)
+    correlation = _FakeCorrelationService(result=unsafe)
+    _patch_dependencies(monkeypatch, repository, correlation)
+
+    result = runner.invoke(cli.app, ["show", CVE_ID])
+
+    assert result.exit_code == 0
+    assert "Traceback" not in result.output
+    assert "\x1b[31m" not in result.output
 
 
 def test_show_cache_read_failure_self_heals(monkeypatch: pytest.MonkeyPatch) -> None:

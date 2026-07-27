@@ -3,9 +3,14 @@
 Accesses no adapter, HTTP client, or storage implementation (V4). Content is
 deliberately unstyled beyond structural bold labels, so output stays
 understandable without color (see docs/architecture.md, Issue #10 AC).
+
+Every externally sourced value goes through `_safe_text` before it reaches a
+Rich renderable, so source data is displayed literally and can never drive
+the terminal (SECURITY.md, Issue #24).
 """
 
 import io
+import re
 
 from rich.box import ROUNDED
 from rich.console import Console, ConsoleRenderable, Group
@@ -22,6 +27,23 @@ _SOURCE_LABELS = {
     SourceName.FIRST_EPSS: "FIRST EPSS",
 }
 
+# C0 controls except tab (\x09) and newline (\x0a), which are legitimate in
+# multi-line source descriptions; plus DEL (\x7f) and the C1 range. Carriage
+# return is stripped because it can overwrite already-rendered output.
+_UNSAFE_CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f]")
+
+
+def _safe_text(value: str) -> Text:
+    """Render externally sourced text literally.
+
+    `Text` never interprets Rich console markup, so bracketed source content
+    such as `[sic]` or `[/]` survives byte-for-byte instead of being parsed
+    (or raising `MarkupError`). Unsafe C0/C1 control characters are removed so
+    ANSI escapes in source data cannot recolor, reposition, or clear the
+    terminal.
+    """
+    return Text(_UNSAFE_CONTROL_CHARS.sub("", value))
+
 
 def build_renderable(briefing: VulnerabilityBriefing) -> Panel:
     """Pure construction of the Rich renderable tree for one briefing. No
@@ -29,7 +51,7 @@ def build_renderable(briefing: VulnerabilityBriefing) -> Panel:
     sections: list[ConsoleRenderable] = []
 
     if briefing.description:
-        sections.append(Text(briefing.description))
+        sections.append(_safe_text(briefing.description))
 
     published = briefing.published_at.isoformat() if briefing.published_at else "unknown"
     modified = briefing.modified_at.isoformat() if briefing.modified_at else "unknown"
@@ -39,11 +61,11 @@ def build_renderable(briefing: VulnerabilityBriefing) -> Panel:
 
     if briefing.references:
         ref_lines = "\n".join(f"- {ref.url}" for ref in briefing.references)
-        sections.append(Text(f"References:\n{ref_lines}"))
+        sections.append(_safe_text(f"References:\n{ref_lines}"))
 
     sections.append(_build_sources_table(briefing))
 
-    return Panel(Group(*sections), title=briefing.cve_id, box=ROUNDED)
+    return Panel(Group(*sections), title=_safe_text(briefing.cve_id), box=ROUNDED)
 
 
 def _build_facts_table(briefing: VulnerabilityBriefing) -> Table:
@@ -51,9 +73,12 @@ def _build_facts_table(briefing: VulnerabilityBriefing) -> Table:
     table.add_column("label", style="bold")
     table.add_column("value")
 
-    table.add_row("CVSS", _render_cvss(briefing))
-    table.add_row("EPSS", _render_epss(briefing))
-    table.add_row("KEV", _render_kev(briefing))
+    # The composed strings embed untrusted source values (KEV required action,
+    # CVSS severity/vector), so each cell is wrapped rather than passed as a
+    # bare str, which Rich would parse as console markup.
+    table.add_row("CVSS", _safe_text(_render_cvss(briefing)))
+    table.add_row("EPSS", _safe_text(_render_epss(briefing)))
+    table.add_row("KEV", _safe_text(_render_kev(briefing)))
 
     return table
 
