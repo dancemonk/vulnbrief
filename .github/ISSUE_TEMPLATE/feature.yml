@@ -1,0 +1,71 @@
+name: Feature request
+description: Propose a scoped VulnBrief capability or improvement
+title: "[Feature]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Define one focused change. Do not combine unrelated features or implementation cleanup.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user or engineering problem needs solving?
+      placeholder: Describe the current limitation and who it affects.
+    validations:
+      required: true
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What outcome should this Issue deliver?
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance criteria
+      description: List observable, testable conditions for completion.
+      placeholder: |
+        - [ ] Given ..., when ..., then ...
+        - [ ] Tests cover ...
+    validations:
+      required: true
+  - type: textarea
+    id: failure-scenarios
+    attributes:
+      label: Failure scenarios
+      description: Which invalid inputs, source failures, and partial results must be handled?
+      placeholder: List scenarios or write None with an explanation.
+    validations:
+      required: true
+  - type: textarea
+    id: out-of-scope
+    attributes:
+      label: Out of scope
+      description: Explicitly list work this Issue must not include.
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification
+      description: Which commands and manual checks prove completion?
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: List prerequisite Issues, decisions, or external constraints.
+      placeholder: List dependencies or write None.
+    validations:
+      required: true
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Add links, examples, diagrams, or constraints.
+      placeholder: Add context or write None.
+    validations:
+      required: true
