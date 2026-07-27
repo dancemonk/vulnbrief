@@ -217,6 +217,117 @@ def test_no_color_output_contains_no_ansi_escape_codes() -> None:
     assert "\x1b[" not in output
 
 
+def test_required_action_with_square_brackets_is_preserved_literally() -> None:
+    briefing = _base_briefing(
+        kev=KevInfo(
+            is_known_exploited=True, required_action="Apply [sic] the vendor patch immediately"
+        ),
+    )
+
+    output = render_briefing_text(briefing, width=200)
+
+    assert "[sic]" in output
+    assert "Apply [sic] the vendor patch immediately" in output
+
+
+def test_required_action_with_closing_markup_tag_does_not_raise() -> None:
+    # A bare "[/]" is a Rich closing tag with nothing to close; passing this
+    # as an unwrapped str raised rich.errors.MarkupError before Issue #24.
+    briefing = _base_briefing(
+        kev=KevInfo(is_known_exploited=True, required_action="See [/] bulletin"),
+    )
+
+    output = render_briefing_text(briefing, width=200)
+
+    assert "[/]" in output
+    assert "See [/] bulletin" in output
+
+
+def test_rich_link_markup_from_source_data_is_not_activated() -> None:
+    briefing = _base_briefing(
+        kev=KevInfo(
+            is_known_exploited=True,
+            required_action="[link=file:///etc/passwd]click here[/link]",
+        ),
+    )
+
+    output = render_briefing_text(briefing, width=200)
+
+    assert "[link=file:///etc/passwd]click here[/link]" in output
+    assert "\x1b]8;" not in output  # no OSC 8 hyperlink was emitted
+
+
+def test_rich_style_markup_from_source_data_is_not_applied() -> None:
+    briefing = _base_briefing(
+        kev=KevInfo(is_known_exploited=True, required_action="[bold red]CRITICAL[/bold red]"),
+    )
+
+    output = render_briefing_text(briefing, width=200, no_color=False)
+
+    assert "[bold red]CRITICAL[/bold red]" in output
+    assert "\x1b[1;31m" not in output
+
+
+def test_ansi_escape_in_required_action_is_stripped() -> None:
+    briefing = _base_briefing(
+        kev=KevInfo(is_known_exploited=True, required_action="Patch \x1b[31mnow\x1b[0m"),
+    )
+
+    output = render_briefing_text(briefing, width=200)
+
+    assert "\x1b" not in output
+    assert "Patch" in output
+    assert "now" in output
+
+
+def test_control_characters_in_description_are_stripped() -> None:
+    briefing = _base_briefing(
+        description="before\x00\x07\x1b[2Jmiddle\rafter\x7f\x9bend\nsecond line\ttabbed",
+    )
+
+    output = render_briefing_text(briefing, width=200)
+
+    for control in ("\x00", "\x07", "\x1b", "\r", "\x7f", "\x9b"):
+        assert control not in output
+    assert "before" in output
+    assert "middle" in output
+    assert "after" in output
+    assert "end" in output
+    assert "second line" in output  # newline preserved as a line break
+    assert "tabbed" in output
+
+
+def test_control_characters_in_reference_url_are_stripped() -> None:
+    briefing = _base_briefing(
+        references=[Reference(url="https://example.com/a\x1b[31mdvisory")],
+    )
+
+    output = render_briefing_text(briefing, width=200)
+
+    # Only the ESC byte is removed; the remaining "[31m" stays as inert
+    # literal text rather than being parsed as markup or acted on.
+    assert "\x1b" not in output
+    assert "https://example.com/a[31mdvisory" in output
+
+
+def test_injected_markup_stays_readable_in_no_color_output() -> None:
+    briefing = _base_briefing(
+        description="Overflow in [bold]parser[/bold].\x1b[31m",
+        cvss=CvssInfo(score=9.8, severity="[blink]CRITICAL[/blink]"),
+        kev=KevInfo(
+            is_known_exploited=True,
+            required_action="Apply [sic] vendor update; see [/] advisory\x1b[2J",
+        ),
+    )
+
+    output = render_briefing_text(briefing, width=200, no_color=True)
+
+    assert "\x1b[" not in output
+    assert "Overflow in [bold]parser[/bold]." in output
+    assert "[blink]CRITICAL[/blink]" in output
+    assert "Apply [sic] vendor update; see [/] advisory" in output
+
+
 def test_renderer_performs_no_networking_or_storage_operations() -> None:
     # build_renderable takes only a VulnerabilityBriefing and returns Rich
     # objects -- there is no adapter, HTTPX, or SQLite import anywhere in
