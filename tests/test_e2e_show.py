@@ -30,6 +30,11 @@ runner = CliRunner(env={"TERM": "dumb"})
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
+# Adapters verify that a response is for the CVE that was requested, so every
+# scenario must serve fixtures whose own identifiers match the CVE asked for.
+KEV_LISTED_CVE = "CVE-2024-1111"  # present in kev/catalog.json
+UNLISTED_CVE = "CVE-2024-1234"  # absent from kev/catalog.json
+
 
 def _load_fixture(source: str, name: str) -> dict[str, object]:
     data: dict[str, object] = json.loads((FIXTURES_DIR / source / name).read_text())
@@ -65,16 +70,16 @@ def test_e2e_valid_cve_with_nvd_kev_and_epss_data(
 ) -> None:
     _use_temp_cache(monkeypatch, tmp_path)
     service = _build_correlation_service(
-        nvd_handler=_json_handler(_load_fixture("nvd", "success_full.json")),
+        nvd_handler=_json_handler(_load_fixture("nvd", "success_kev_match.json")),
         kev_handler=_json_handler(_load_fixture("kev", "catalog.json")),
-        epss_handler=_json_handler(_load_fixture("epss", "success.json")),
+        epss_handler=_json_handler(_load_fixture("epss", "success_kev_match.json")),
     )
     monkeypatch.setattr(cli, "build_correlation_service", lambda: service)
 
-    result = runner.invoke(cli.app, ["show", "CVE-2024-1111"])
+    result = runner.invoke(cli.app, ["show", KEV_LISTED_CVE])
 
     assert result.exit_code == 0
-    assert "CVE-2024-1111" in result.output
+    assert KEV_LISTED_CVE in result.output
     assert "NVD" in result.output
     assert "CISA KEV" in result.output
     assert "FIRST EPSS" in result.output
@@ -91,7 +96,7 @@ def test_e2e_valid_cve_with_no_kev_entry(monkeypatch: pytest.MonkeyPatch, tmp_pa
     )
     monkeypatch.setattr(cli, "build_correlation_service", lambda: service)
 
-    result = runner.invoke(cli.app, ["show", "CVE-2099-0000"])
+    result = runner.invoke(cli.app, ["show", UNLISTED_CVE])
 
     assert result.exit_code == 0
     assert "Not in KEV catalog" in result.output
@@ -103,13 +108,13 @@ def test_e2e_valid_cve_with_missing_epss_data(
 ) -> None:
     _use_temp_cache(monkeypatch, tmp_path)
     service = _build_correlation_service(
-        nvd_handler=_json_handler(_load_fixture("nvd", "success_full.json")),
+        nvd_handler=_json_handler(_load_fixture("nvd", "success_kev_match.json")),
         kev_handler=_json_handler(_load_fixture("kev", "catalog.json")),
         epss_handler=_json_handler(_load_fixture("epss", "not_found.json")),
     )
     monkeypatch.setattr(cli, "build_correlation_service", lambda: service)
 
-    result = runner.invoke(cli.app, ["show", "CVE-2024-1111"])
+    result = runner.invoke(cli.app, ["show", KEV_LISTED_CVE])
 
     assert result.exit_code == 0
     assert "Known Exploited" in result.output  # KEV data still present
@@ -157,7 +162,7 @@ def test_e2e_external_source_timeout_exits_nonzero_without_traceback(
     service = _build_correlation_service(timeout_handler, kev_handler, epss_handler)
     monkeypatch.setattr(cli, "build_correlation_service", lambda: service)
 
-    result = runner.invoke(cli.app, ["show", "CVE-2024-1111"])
+    result = runner.invoke(cli.app, ["show", KEV_LISTED_CVE])
 
     assert result.exit_code == 1
     assert "Traceback" not in result.output
@@ -169,10 +174,13 @@ def test_e2e_cached_result_then_forced_refresh(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     _use_temp_cache(monkeypatch, tmp_path)
-    nvd_bodies = [
-        _load_fixture("nvd", "success_full.json"),
-        _load_fixture("nvd", "success_partial.json"),
-    ]
+    # Both bodies describe the same CVE -- only the description differs -- so
+    # the refetch is provably a refetch rather than a different record.
+    updated = _load_fixture("nvd", "success_kev_match.json")
+    updated["vulnerabilities"][0]["cve"]["descriptions"][0]["value"] = (  # type: ignore[index]
+        "Updated description after refresh."
+    )
+    nvd_bodies = [_load_fixture("nvd", "success_kev_match.json"), updated]
     call_counts = {"nvd": 0, "kev": 0, "epss": 0}
 
     def nvd_handler(request: httpx.Request) -> httpx.Response:
@@ -186,24 +194,25 @@ def test_e2e_cached_result_then_forced_refresh(
 
     def epss_handler(request: httpx.Request) -> httpx.Response:
         call_counts["epss"] += 1
-        return httpx.Response(200, json=_load_fixture("epss", "success.json"))
+        return httpx.Response(200, json=_load_fixture("epss", "success_kev_match.json"))
 
     service = _build_correlation_service(nvd_handler, kev_handler, epss_handler)
     monkeypatch.setattr(cli, "build_correlation_service", lambda: service)
 
     # First call: cache miss, populates the cache.
-    first = runner.invoke(cli.app, ["show", "CVE-2024-1111"])
+    first = runner.invoke(cli.app, ["show", KEV_LISTED_CVE])
     assert first.exit_code == 0
     assert call_counts == {"nvd": 1, "kev": 1, "epss": 1}
 
     # Second call: cache hit, no new HTTP calls, identical output.
-    second = runner.invoke(cli.app, ["show", "CVE-2024-1111"])
+    second = runner.invoke(cli.app, ["show", KEV_LISTED_CVE])
     assert second.exit_code == 0
     assert call_counts == {"nvd": 1, "kev": 1, "epss": 1}
     assert second.output == first.output
 
     # Third call: --refresh forces a genuine re-fetch reflecting new data.
-    third = runner.invoke(cli.app, ["show", "CVE-2024-1111", "--refresh"])
+    third = runner.invoke(cli.app, ["show", KEV_LISTED_CVE, "--refresh"])
     assert third.exit_code == 0
     assert call_counts == {"nvd": 2, "kev": 2, "epss": 2}
     assert third.output != first.output
+    assert "Updated description after refresh." in third.output

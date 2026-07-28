@@ -104,9 +104,24 @@ class NvdAdapter:
         if not vulnerabilities:
             raise SourceNotFoundError(SourceName.NVD, f"{cve_id} not found in NVD")
 
-        cve = vulnerabilities[0].get("cve")
-        if not isinstance(cve, dict) or "id" not in cve:
+        # Each boundary is validated before it is used: NVD entries have been
+        # observed to be non-dict during upstream incidents, and an unguarded
+        # .get() there raises AttributeError, which is not an expected typed
+        # failure.
+        entry = vulnerabilities[0]
+        if not isinstance(entry, dict):
             raise SourceResponseError(SourceName.NVD, "unexpected response structure")
+
+        cve = entry.get("cve")
+        if not isinstance(cve, dict):
+            raise SourceResponseError(SourceName.NVD, "unexpected response structure")
+
+        # The record must be for the CVE that was asked for. Without this the
+        # requested ID is stamped onto whatever arrived, so another CVE's data
+        # would be presented -- and cached -- as authoritative.
+        returned_id = cve.get("id")
+        if not isinstance(returned_id, str) or returned_id.strip().upper() != cve_id:
+            raise SourceResponseError(SourceName.NVD, "response does not match the requested CVE")
 
         return VulnerabilityBriefing(
             cve_id=cve_id,
@@ -144,9 +159,15 @@ def _extract_description(cve: dict[str, object]) -> str | None:
 
 
 def _parse_nvd_datetime(value: object) -> datetime | None:
+    """Parse an optional NVD timestamp, treating an unparseable one as a
+    missing value. NVD is the required source, so escalating a single bad
+    timestamp would discard an otherwise usable record entirely."""
     if not isinstance(value, str) or not value:
         return None
-    parsed = datetime.fromisoformat(value)
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        return None
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=UTC)
     return parsed

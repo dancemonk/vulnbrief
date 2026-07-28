@@ -97,6 +97,13 @@ class EpssAdapter:
             entry = entries[0]
             if not isinstance(entry, dict):
                 raise SourceResponseError(SourceName.FIRST_EPSS, "unexpected response structure")
+            # The record must be for the CVE that was asked for; otherwise
+            # another CVE's score would be reported under the requested ID.
+            returned_id = entry.get("cve")
+            if not isinstance(returned_id, str) or returned_id.strip().upper() != cve_id:
+                raise SourceResponseError(
+                    SourceName.FIRST_EPSS, "response does not match the requested CVE"
+                )
             epss = _parse_epss_info(entry)
             outcome = SourceOutcome.FOUND
 
