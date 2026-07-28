@@ -5,9 +5,16 @@ on:
   push:
     branches: [main]
 
+# The job only reads the repository and runs checks, so the token is scoped
+# down from the repository default rather than handed to third-party actions
+# with write access.
+permissions:
+  contents: read
+
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
