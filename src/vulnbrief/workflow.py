@@ -50,8 +50,13 @@ def run_show(
     if not refresh:
         try:
             cached = repository.get(normalized_id)
-        except CacheError:
-            cached = None  # unreadable or invalid cache is treated as a miss
+        except CacheError as exc:
+            # Unreadable or invalid cached data is a miss, not a failure: the
+            # fresh lookup below still runs. It is reported rather than
+            # swallowed, so a permanently broken cache cannot stay invisible.
+            cached = None
+            if on_warning is not None:
+                on_warning(f"could not read cached data: {exc}")
         if cached is not None and _is_complete(cached):
             return cached
 

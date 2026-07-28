@@ -16,6 +16,7 @@ from rich.console import Console
 from vulnbrief.adapters import EpssAdapter, KevAdapter, NvdAdapter
 from vulnbrief.adapters.exceptions import SourceError
 from vulnbrief.correlation import CorrelationService
+from vulnbrief.domain.identifiers import InvalidCveIdError
 from vulnbrief.rendering import build_renderable
 from vulnbrief.storage import (
     BriefingRepository,
@@ -73,7 +74,7 @@ def show(
         briefing = run_show(
             cve_id, refresh, repository, build_correlation_service(), on_warning=warn
         )
-    except ValueError as exc:
+    except InvalidCveIdError as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=2) from None
     except SourceError as exc:
@@ -83,6 +84,12 @@ def show(
         # Defensive: run_show absorbs cache failures itself, so reaching here
         # means a repository raised outside the paths it guards.
         typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from None
+    except ValueError as exc:
+        # An internal parsing or Pydantic failure, not bad user input. It gets
+        # a distinct message and exit code so it is never mistaken for one,
+        # but it still must not surface a traceback.
+        typer.echo(f"Error: unexpected internal failure: {exc}", err=True)
         raise typer.Exit(code=1) from None
 
     Console().print(build_renderable(briefing))

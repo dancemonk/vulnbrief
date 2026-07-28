@@ -274,9 +274,10 @@ def test_cache_write_failure_returns_result_and_emits_one_warning() -> None:
     assert "cache" in warnings[0]
 
 
-def test_unreadable_cache_falls_through_and_does_not_warn() -> None:
-    # An unusable cache on read is an ordinary miss; the fresh lookup that
-    # follows is the user-visible outcome, so nothing needs reporting.
+def test_unreadable_cache_falls_through_and_warns_once() -> None:
+    # Issue #26 originally asserted silence here, reasoning that the fresh
+    # lookup made the read failure unremarkable. Issue #34 reversed that: a
+    # silently degraded cache is how a permanently broken one stays invisible.
     repository = FakeRepository(get_error=CacheUnavailableError("cache unreadable"))
     fresh = _briefing(description="Fresh after unreadable cache.")
     correlation = FakeCorrelationService(result=fresh)
@@ -292,4 +293,42 @@ def test_unreadable_cache_falls_through_and_does_not_warn() -> None:
 
     assert result.description == "Fresh after unreadable cache."
     assert correlation.calls == [CVE_ID]
-    assert warnings == []
+    assert len(warnings) == 1
+    assert "cached data" in warnings[0]
+
+
+def test_corrupt_cached_record_falls_through_and_warns_once() -> None:
+    repository = FakeRepository(get_error=CacheCorruptionError("corrupted row"))
+    fresh = _briefing(description="Fresh after corruption.")
+    correlation = FakeCorrelationService(result=fresh)
+    warnings: list[str] = []
+
+    result = run_show(
+        CVE_ID,
+        refresh=False,
+        repository=repository,
+        correlation_service=correlation,
+        on_warning=warnings.append,
+    )
+
+    assert result.description == "Fresh after corruption."
+    assert len(warnings) == 1
+
+
+def test_cache_read_warning_exposes_no_sqlite_or_path_details() -> None:
+    error = CacheUnavailableError("cache database could not be read")
+    repository = FakeRepository(get_error=error)
+    correlation = FakeCorrelationService(result=_briefing())
+    warnings: list[str] = []
+
+    run_show(
+        CVE_ID,
+        refresh=False,
+        repository=repository,
+        correlation_service=correlation,
+        on_warning=warnings.append,
+    )
+
+    assert len(warnings) == 1
+    assert "sqlite" not in warnings[0].lower()
+    assert "/" not in warnings[0]
