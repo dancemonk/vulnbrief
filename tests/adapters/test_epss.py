@@ -62,6 +62,60 @@ def test_successful_response_with_no_match_is_explicit_no_data() -> None:
     assert briefing.source_outcomes[SourceName.FIRST_EPSS] == SourceOutcome.NOT_FOUND
 
 
+def _body_handler(body: object) -> Callable[[httpx.Request], httpx.Response]:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=body)
+
+    return handler
+
+
+def test_response_for_a_different_cve_is_rejected() -> None:
+    # success.json describes CVE-2024-1234. Requesting a different CVE must
+    # not return that score relabelled with the requested ID.
+    adapter = _adapter_for(_json_handler("success.json"))
+
+    with pytest.raises(SourceResponseError):
+        adapter.get_cve("CVE-2024-9998")
+
+
+@pytest.mark.parametrize("returned_id", [None, 42, ["CVE-2024-1234"], {"cve": "CVE-2024-1234"}])
+def test_non_string_cve_identifier_raises_typed_error(returned_id: object) -> None:
+    adapter = _adapter_for(
+        _body_handler({"data": [{"cve": returned_id, "epss": "0.1", "percentile": "0.2"}]})
+    )
+
+    with pytest.raises(SourceResponseError):
+        adapter.get_cve("CVE-2024-1234")
+
+
+def test_missing_cve_identifier_raises_typed_error() -> None:
+    adapter = _adapter_for(_body_handler({"data": [{"epss": "0.1", "percentile": "0.2"}]}))
+
+    with pytest.raises(SourceResponseError):
+        adapter.get_cve("CVE-2024-1234")
+
+
+def test_returned_cve_identifier_is_matched_case_insensitively() -> None:
+    adapter = _adapter_for(
+        _body_handler({"data": [{"cve": "cve-2024-1234", "epss": "0.1", "percentile": "0.2"}]})
+    )
+
+    briefing = adapter.get_cve("CVE-2024-1234")
+
+    assert briefing.epss is not None
+    assert briefing.epss.score == 0.1
+
+
+def test_empty_data_remains_no_match_not_a_mismatch_failure() -> None:
+    # The no-match path must stay distinguishable from a rejected record.
+    adapter = _adapter_for(_body_handler({"data": []}))
+
+    briefing = adapter.get_cve("CVE-2024-0000")
+
+    assert briefing.epss is None
+    assert briefing.source_outcomes[SourceName.FIRST_EPSS] == SourceOutcome.NOT_FOUND
+
+
 def test_zero_score_and_percentile_are_preserved_not_missing() -> None:
     adapter = _adapter_for(_json_handler("zero_score.json"))
 
