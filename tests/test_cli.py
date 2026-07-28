@@ -171,6 +171,41 @@ def test_show_invalid_cve_exits_nonzero_without_traceback(monkeypatch: pytest.Mo
     assert "Error" in result.output
 
 
+def test_show_internal_value_error_is_not_reported_as_invalid_input(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # A parsing or Pydantic ValueError is an internal defect, not bad user
+    # input. It must be distinguishable from an invalid CVE identifier and
+    # must still not surface a traceback.
+    repository = _FakeRepository(cached=None)
+    correlation = _FakeCorrelationService(error=ValueError("internal parsing failure"))
+    _patch_dependencies(monkeypatch, repository, correlation)
+
+    result = runner.invoke(cli.app, ["show", CVE_ID])
+
+    assert result.exit_code == 1  # not 2, which means invalid user input
+    assert "Traceback" not in result.output
+    assert "Invalid CVE identifier" not in result.output
+    assert "internal" in result.output
+
+
+def test_show_invalid_input_and_internal_failure_are_distinguishable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repository = _FakeRepository(cached=None)
+    _patch_dependencies(
+        monkeypatch, repository, _FakeCorrelationService(error=ValueError("internal boom"))
+    )
+    internal = runner.invoke(cli.app, ["show", CVE_ID])
+
+    _patch_dependencies(monkeypatch, repository, _FakeCorrelationService())
+    invalid = runner.invoke(cli.app, ["show", "not-a-cve"])
+
+    assert invalid.exit_code == 2
+    assert internal.exit_code == 1
+    assert invalid.output != internal.output
+
+
 def test_show_nvd_not_found_exits_nonzero_without_traceback(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -1,7 +1,9 @@
 # VulnBrief v0.1 Specification
 
-> Status: planned. No application code currently exists. This specification
-> defines approved v0.1 requirements, not implemented behavior.
+> Status: implemented. The v0.1 requirements below are delivered by the
+> current codebase; tasks T1 through T10 are complete. This specification
+> continues to define approved v0.1 behavior and boundaries, and changes to it
+> still require maintainer approval through a governing Issue.
 
 ## §G Goal
 
@@ -95,20 +97,20 @@ decisions for their governing Issues.
 - **V9:** Every HTTP request has an explicit finite timeout.
 - **V10:** No secrets, `.env` files, or local databases enter version control.
 
-## §T Planned Implementation
+## §T Implementation
 
 | id | status | task | cites |
 |---|---|---|---|
-| T1 | . | Bootstrap package and empty CLI (Issue #2) | I.cli,V10 |
-| T2 | . | Create normalized vulnerability model (Issue #3) | I.briefing,V2,V3,V7 |
-| T3 | . | Implement NVD adapter (Issue #4) | I.sources,V2,V6,V7,V9 |
-| T4 | . | Implement CISA KEV adapter (Issue #5) | I.sources,V2,V6,V7,V9 |
-| T5 | . | Implement FIRST EPSS adapter (Issue #6) | I.sources,V2,V6,V7,V9 |
-| T6 | . | Correlate source results (Issue #7) | I.briefing,V6,V7 |
-| T7 | . | Add SQLite cache repository (Issue #8) | I.briefing,V5,V8,V10 |
-| T8 | . | Implement `vulnbrief show` workflow (Issue #9) | I.cli,I.errors,V1,V6 |
-| T9 | . | Render Rich terminal briefing (Issue #10) | I.output,V4 |
-| T10 | . | Add CI and end-to-end tests (Issue #11) | I.cli,I.output,V8 |
+| T1 | x | Bootstrap package and empty CLI (Issue #2) | I.cli,V10 |
+| T2 | x | Create normalized vulnerability model (Issue #3) | I.briefing,V2,V3,V7 |
+| T3 | x | Implement NVD adapter (Issue #4) | I.sources,V2,V6,V7,V9 |
+| T4 | x | Implement CISA KEV adapter (Issue #5) | I.sources,V2,V6,V7,V9 |
+| T5 | x | Implement FIRST EPSS adapter (Issue #6) | I.sources,V2,V6,V7,V9 |
+| T6 | x | Correlate source results (Issue #7) | I.briefing,V6,V7 |
+| T7 | x | Add SQLite cache repository (Issue #8) | I.briefing,V5,V8,V10 |
+| T8 | x | Implement `vulnbrief show` workflow (Issue #9) | I.cli,I.errors,V1,V6 |
+| T9 | x | Render Rich terminal briefing (Issue #10) | I.output,V4 |
+| T10 | x | Add CI and end-to-end tests (Issue #11) | I.cli,I.output,V8 |
 
 ## v0.1 Out of Scope
 
@@ -132,3 +134,5 @@ checks pass.
 
 | id | date | cause | fix |
 |---|---|---|---|
+| B1 | 2026-07-27 | MVP implementation completed (T1-T10, Issues #2-#11); a subsequent read-only security, correctness, and reliability audit found defects in rendering, adapter parsing, and cache handling | Issues #24-#27 and #29 remediated every High and Medium finding: untrusted source text is rendered literally with control characters stripped (V-I.output); NVD structural boundaries are validated and both NVD and EPSS verify returned CVE identity (V2,V7); cache failures became typed, non-fatal, and visible (V5); CI runs with read-only token permissions and tests enforce network and database isolation (V8) |
+| B2 | 2026-07-27 | Documentation still described the implemented MVP as planned, and invalid CVE input shared a broad `ValueError` contract with internal parsing failures | Status updated to implemented; `InvalidCveIdError` separates bad user input from internal defects (I.errors); unreadable cached data now warns instead of degrading silently |
