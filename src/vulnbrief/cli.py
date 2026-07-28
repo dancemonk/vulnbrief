@@ -17,7 +17,12 @@ from vulnbrief.adapters import EpssAdapter, KevAdapter, NvdAdapter
 from vulnbrief.adapters.exceptions import SourceError
 from vulnbrief.correlation import CorrelationService
 from vulnbrief.rendering import build_renderable
-from vulnbrief.storage import SqliteBriefingRepository
+from vulnbrief.storage import (
+    BriefingRepository,
+    CacheError,
+    NullBriefingRepository,
+    SqliteBriefingRepository,
+)
 from vulnbrief.workflow import run_show
 
 DEFAULT_DB_PATH = Path.home() / ".vulnbrief" / "cache.db"
@@ -51,12 +56,32 @@ def show(
     refresh: bool = typer.Option(False, "--refresh", help="Bypass cached data and refetch."),
 ) -> None:
     """Display an explainable vulnerability briefing for one CVE."""
+
+    def warn(message: str) -> None:
+        typer.echo(f"Warning: {message}", err=True)
+
+    # An unusable cache degrades the lookup instead of blocking it: sources are
+    # still queried, results simply are not cached this run.
+    repository: BriefingRepository
     try:
-        briefing = run_show(cve_id, refresh, build_repository(), build_correlation_service())
+        repository = build_repository()
+    except CacheError as exc:
+        warn(f"{exc}. Continuing without cache.")
+        repository = NullBriefingRepository()
+
+    try:
+        briefing = run_show(
+            cve_id, refresh, repository, build_correlation_service(), on_warning=warn
+        )
     except ValueError as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=2) from None
     except SourceError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from None
+    except CacheError as exc:
+        # Defensive: run_show absorbs cache failures itself, so reaching here
+        # means a repository raised outside the paths it guards.
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=1) from None
 

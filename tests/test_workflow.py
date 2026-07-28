@@ -8,7 +8,7 @@ import pytest
 from vulnbrief.adapters.exceptions import SourceNotFoundError
 from vulnbrief.domain.enums import SourceName, SourceOutcome
 from vulnbrief.domain.models import SourceProvenance, VulnerabilityBriefing
-from vulnbrief.storage.repository import CacheCorruptionError
+from vulnbrief.storage.repository import CacheCorruptionError, CacheUnavailableError
 from vulnbrief.workflow import run_show
 
 CVE_ID = "CVE-2024-1234"
@@ -187,3 +187,109 @@ def test_cache_write_failure_after_successful_retrieval_does_not_raise() -> None
     result = run_show(CVE_ID, refresh=False, repository=repository, correlation_service=correlation)
 
     assert result.description == fresh.description
+
+
+def _cached_with_outcomes(
+    outcomes: dict[SourceName, SourceOutcome], description: str = "Cached value."
+) -> VulnerabilityBriefing:
+    return VulnerabilityBriefing(
+        cve_id=CVE_ID,
+        description=description,
+        provenance=[SourceProvenance(source=SourceName.NVD, retrieved_at=RETRIEVED_AT)],
+        source_outcomes=outcomes,
+        retrieved_at=RETRIEVED_AT,
+    )
+
+
+def test_cached_unavailable_optional_source_triggers_fresh_retrieval() -> None:
+    # A briefing cached during a transient CISA outage must not be served
+    # forever; there is no TTL to age it out.
+    stale = _cached_with_outcomes(
+        {SourceName.NVD: SourceOutcome.FOUND, SourceName.CISA_KEV: SourceOutcome.UNAVAILABLE},
+        description="Cached during KEV outage.",
+    )
+    repository = FakeRepository(cached=stale)
+    fresh = _briefing(description="Fresh with KEV data.")
+    correlation = FakeCorrelationService(result=fresh)
+
+    result = run_show(CVE_ID, refresh=False, repository=repository, correlation_service=correlation)
+
+    assert result.description == "Fresh with KEV data."
+    assert correlation.calls == [CVE_ID]
+    assert repository.put_calls == [fresh]
+
+
+def test_cached_malformed_optional_source_triggers_fresh_retrieval() -> None:
+    stale = _cached_with_outcomes(
+        {SourceName.NVD: SourceOutcome.FOUND, SourceName.FIRST_EPSS: SourceOutcome.MALFORMED},
+        description="Cached with malformed EPSS.",
+    )
+    repository = FakeRepository(cached=stale)
+    fresh = _briefing(description="Fresh with EPSS data.")
+    correlation = FakeCorrelationService(result=fresh)
+
+    result = run_show(CVE_ID, refresh=False, repository=repository, correlation_service=correlation)
+
+    assert result.description == "Fresh with EPSS data."
+    assert correlation.calls == [CVE_ID]
+
+
+def test_cached_not_found_outcome_remains_a_usable_cache_hit() -> None:
+    # NOT_FOUND is a settled answer, not a failure: the source was reached and
+    # genuinely had no entry, so the cached briefing stays valid.
+    cached = _cached_with_outcomes(
+        {
+            SourceName.NVD: SourceOutcome.FOUND,
+            SourceName.CISA_KEV: SourceOutcome.NOT_FOUND,
+            SourceName.FIRST_EPSS: SourceOutcome.NOT_FOUND,
+        },
+        description="Complete with no-match enrichment.",
+    )
+    repository = FakeRepository(cached=cached)
+    correlation = FakeCorrelationService()
+
+    result = run_show(CVE_ID, refresh=False, repository=repository, correlation_service=correlation)
+
+    assert result.description == "Complete with no-match enrichment."
+    assert correlation.calls == []
+    assert repository.put_calls == []
+
+
+def test_cache_write_failure_returns_result_and_emits_one_warning() -> None:
+    repository = FakeRepository(cached=None, put_error=CacheUnavailableError("disk full"))
+    fresh = _briefing()
+    correlation = FakeCorrelationService(result=fresh)
+    warnings: list[str] = []
+
+    result = run_show(
+        CVE_ID,
+        refresh=False,
+        repository=repository,
+        correlation_service=correlation,
+        on_warning=warnings.append,
+    )
+
+    assert result.description == fresh.description
+    assert len(warnings) == 1
+    assert "cache" in warnings[0]
+
+
+def test_unreadable_cache_falls_through_and_does_not_warn() -> None:
+    # An unusable cache on read is an ordinary miss; the fresh lookup that
+    # follows is the user-visible outcome, so nothing needs reporting.
+    repository = FakeRepository(get_error=CacheUnavailableError("cache unreadable"))
+    fresh = _briefing(description="Fresh after unreadable cache.")
+    correlation = FakeCorrelationService(result=fresh)
+    warnings: list[str] = []
+
+    result = run_show(
+        CVE_ID,
+        refresh=False,
+        repository=repository,
+        correlation_service=correlation,
+        on_warning=warnings.append,
+    )
+
+    assert result.description == "Fresh after unreadable cache."
+    assert correlation.calls == [CVE_ID]
+    assert warnings == []

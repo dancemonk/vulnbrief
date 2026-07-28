@@ -139,6 +139,45 @@ def test_kev_unknown_due_to_source_failure_is_distinct_from_negative_result() ->
     assert negative_output != failed_output
 
 
+def test_source_never_attempted_renders_as_not_checked() -> None:
+    # Only NVD is present in source_outcomes: KEV and EPSS were never
+    # attempted, which must not be reported as a failed lookup.
+    briefing = _base_briefing(
+        kev=None,
+        epss=None,
+        source_outcomes={SourceName.NVD: SourceOutcome.FOUND},
+    )
+
+    output = render_briefing_text(briefing, width=200)
+
+    assert "not checked" in output
+    assert "unavailable" not in output
+
+
+def test_not_checked_is_distinct_from_failed_source() -> None:
+    not_attempted = _base_briefing(
+        kev=None,
+        epss=None,
+        source_outcomes={SourceName.NVD: SourceOutcome.FOUND},
+    )
+    failed = _base_briefing(
+        kev=None,
+        epss=None,
+        source_outcomes={
+            SourceName.NVD: SourceOutcome.FOUND,
+            SourceName.CISA_KEV: SourceOutcome.UNAVAILABLE,
+            SourceName.FIRST_EPSS: SourceOutcome.UNAVAILABLE,
+        },
+    )
+
+    not_attempted_output = render_briefing_text(not_attempted, width=200)
+    failed_output = render_briefing_text(failed, width=200)
+
+    assert "KEV status not checked" in not_attempted_output
+    assert "KEV status unavailable" in failed_output
+    assert not_attempted_output != failed_output
+
+
 def test_incomplete_optional_metadata_renders_without_crashing() -> None:
     briefing = _base_briefing(
         description=None,

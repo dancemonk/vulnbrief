@@ -102,6 +102,8 @@ def _render_epss(briefing: VulnerabilityBriefing) -> str:
     if briefing.epss is not None:
         return f"{briefing.epss.score} ({briefing.epss.percentile} percentile)"
     outcome = briefing.source_outcomes.get(SourceName.FIRST_EPSS)
+    if outcome is None:
+        return "not checked"  # the source was never attempted, not failed
     if outcome == SourceOutcome.NOT_FOUND:
         return "no data available"
     return "unavailable"
@@ -125,6 +127,8 @@ def _render_kev(briefing: VulnerabilityBriefing) -> str:
             return f"Known Exploited{suffix}"
         return "Not in KEV catalog"
     outcome = briefing.source_outcomes.get(SourceName.CISA_KEV)
+    if outcome is None:
+        return "KEV status not checked"  # never attempted, not failed
     if outcome == SourceOutcome.NOT_FOUND:
         return "Not in KEV catalog"
     return "KEV status unavailable"
