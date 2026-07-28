@@ -16,7 +16,11 @@ from vulnbrief.domain.models import (
     SourceProvenance,
     VulnerabilityBriefing,
 )
-from vulnbrief.storage.repository import CacheCorruptionError
+from vulnbrief.storage.repository import (
+    CacheCorruptionError,
+    CacheError,
+    CacheUnavailableError,
+)
 from vulnbrief.storage.sqlite import SqliteBriefingRepository
 
 CVE_ID = "CVE-2024-1234"
@@ -169,7 +173,7 @@ def test_failed_write_does_not_destroy_existing_record(
         "vulnbrief.storage.sqlite._UPSERT",
         "INSERT INTO nonexistent_table (cve_id, data) VALUES (?, ?)",
     )
-    with pytest.raises(sqlite3.OperationalError):
+    with pytest.raises(CacheUnavailableError):
         repo.put(_full_briefing(description="Attempted update."))
     monkeypatch.undo()
 
@@ -224,5 +228,44 @@ def test_context_manager_closes_connection(tmp_path: Path) -> None:
         repo.put(_full_briefing())
         assert repo.get(CVE_ID) is not None
 
-    with pytest.raises(sqlite3.ProgrammingError):
+    # Use after close is a backend failure, reported as a typed cache error
+    # rather than a raw sqlite3.ProgrammingError.
+    with pytest.raises(CacheUnavailableError):
         repo.get(CVE_ID)
+
+
+def test_garbage_file_raises_typed_cache_error_without_sqlite_details(tmp_path: Path) -> None:
+    db_path = tmp_path / "cache.db"
+    db_path.write_bytes(b"this is not a sqlite database at all\x00\xff")
+
+    with pytest.raises(CacheUnavailableError) as exc_info:
+        SqliteBriefingRepository(db_path)
+
+    message = str(exc_info.value)
+    assert "not a database" not in message  # no raw sqlite3 text
+    assert str(db_path) not in message  # no filesystem path
+
+
+def test_uninitializable_database_path_raises_typed_cache_error(tmp_path: Path) -> None:
+    # A regular file where a parent directory is expected: mkdir fails with
+    # OSError, which must also surface as a typed cache error.
+    blocker = tmp_path / "blocker"
+    blocker.write_text("not a directory")
+
+    with pytest.raises(CacheUnavailableError):
+        SqliteBriefingRepository(blocker / "nested" / "cache.db")
+
+
+def test_read_failure_on_closed_connection_is_typed(tmp_path: Path) -> None:
+    repo = SqliteBriefingRepository(tmp_path / "cache.db")
+    repo.put(_full_briefing())
+    repo.close()
+
+    with pytest.raises(CacheUnavailableError):
+        repo.get(CVE_ID)
+
+
+def test_cache_errors_share_a_common_base(tmp_path: Path) -> None:
+    # Callers catch CacheError to treat any cache problem as a miss.
+    assert issubclass(CacheUnavailableError, CacheError)
+    assert issubclass(CacheCorruptionError, CacheError)

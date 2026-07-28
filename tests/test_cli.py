@@ -3,6 +3,7 @@ factories via monkeypatch -- no real HTTP or SQLite is ever touched, so
 there are no live network calls anywhere in this file."""
 
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
@@ -11,7 +12,7 @@ import vulnbrief.cli as cli
 from vulnbrief.adapters.exceptions import SourceNotFoundError, SourceUnavailableError
 from vulnbrief.domain.enums import SourceName, SourceOutcome
 from vulnbrief.domain.models import KevInfo, SourceProvenance, VulnerabilityBriefing
-from vulnbrief.storage.repository import CacheCorruptionError
+from vulnbrief.storage.repository import CacheCorruptionError, CacheUnavailableError
 
 # TERM=dumb keeps CLI output deterministic across environments: Rich treats
 # GITHUB_ACTIONS as a terminal and styles Typer's help, which injects ANSI
@@ -238,6 +239,41 @@ def test_show_unsafe_source_text_does_not_crash_the_cli(monkeypatch: pytest.Monk
     assert result.exit_code == 0
     assert "Traceback" not in result.output
     assert "\x1b[31m" not in result.output
+
+
+def test_show_with_unopenable_cache_degrades_without_traceback(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # A cache file that is not a SQLite database at all previously raised a
+    # raw sqlite3.DatabaseError out of build_repository(), which show() did
+    # not catch. The lookup must now still succeed, uncached.
+    db_path = tmp_path / "cache.db"
+    db_path.write_bytes(b"definitely not a sqlite database\x00\xff")
+    monkeypatch.setenv("VULNBRIEF_DB_PATH", str(db_path))
+
+    correlation = _FakeCorrelationService(result=_briefing())
+    monkeypatch.setattr(cli, "build_correlation_service", lambda: correlation)
+
+    result = runner.invoke(cli.app, ["show", CVE_ID])
+
+    assert result.exit_code == 0
+    assert "Traceback" not in result.output
+    assert CVE_ID in result.output
+    assert correlation.calls == [CVE_ID]
+
+
+def test_show_cache_write_failure_warns_but_still_succeeds(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repository = _FakeRepository(cached=None, put_error=CacheUnavailableError("disk full"))
+    correlation = _FakeCorrelationService(result=_briefing())
+    _patch_dependencies(monkeypatch, repository, correlation)
+
+    result = runner.invoke(cli.app, ["show", CVE_ID])
+
+    assert result.exit_code == 0
+    assert "Traceback" not in result.output
+    assert "Warning" in result.output
 
 
 def test_show_cache_read_failure_self_heals(monkeypatch: pytest.MonkeyPatch) -> None:
